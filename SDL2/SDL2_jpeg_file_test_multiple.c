@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
     unsigned int    screensize_x = 960;
     unsigned int    screensize_y = 540;
 
+	int i;
+
     /*
     * check auguments
     */
@@ -152,42 +154,43 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-	SDL_Renderer* sdlRenderer = SDL_CreateRenderer(screen, -1, 0);
+  	SDL_Renderer* sdlRenderer = SDL_CreateRenderer(screen, -1, 0);		
 
 	Uint32 pixformat = 0;
 	//IYUV: Y + U + V  (3 planes)
 	//YV12: Y + V + U  (3 planes)
 	pixformat = SDL_PIXELFORMAT_RGB24;/*SDL_PIXELFORMAT_IYUV*/;		//这里的像素格式指的是输入SDL的图像的像素格式
 
-	SDL_Texture* sdlTexture = SDL_CreateTexture(sdlRenderer, pixformat, SDL_TEXTUREACCESS_STATIC/*SDL_TEXTUREACCESS_STREAMING*/, cinfo.output_width, cinfo.output_height);
 
+
+	//一个窗口内，多个图层，需要1个渲染器+多个纹理
+	SDL_Texture* sdlTexture[4];
+	for(i=0;i<4;i++)
+	{
+		sdlTexture[i] = SDL_CreateTexture(sdlRenderer, pixformat, SDL_TEXTUREACCESS_STREAMING, cinfo.output_width, cinfo.output_height);
+	}
+		
 	
-	SDL_Rect scale_Rect;
-	SDL_Rect crop_Rect;
-	
+	SDL_Rect sdlRect[4];
 		
 	while(1)
     {
-        SDL_UpdateTexture(sdlTexture, NULL, jpegBufferFrame, oneLineByteSize);	//这个相当于crop，填入的jpegBufferFrame单位的一帧画面
+    	SDL_RenderClear(sdlRenderer);
+		for(i=0;i<4;i++)		
+		{
+			SDL_UpdateTexture(sdlTexture[i], NULL, jpegBufferFrame, oneLineByteSize);	//这个相当于crop，填入的jpegBufferFrame单位的一帧画面
         																		//最后一个参数是，显示一行需要多少字节
-		
-		crop_Rect.x = 0;
-        crop_Rect.y = 0;
-        crop_Rect.w = cinfo.output_width;
-        crop_Rect.h = cinfo.output_height;
+			//设置图像在窗口内显示的位置，相当于图像的scale
+	        sdlRect[i].x = (i%2)*(screensize_x/2);
+	        sdlRect[i].y = (i/2)*(screensize_y/2);
+	        sdlRect[i].w = screensize_x/2;		
+	        sdlRect[i].h = screensize_y/2;
 
-        scale_Rect.x = 0;
-        scale_Rect.y = 0;
-        scale_Rect.w = screensize_x;		
-        scale_Rect.h = screensize_y;
-	
+	        SDL_RenderCopy(sdlRenderer, sdlTexture[i], NULL, &sdlRect[i]);
+		}
 
-        SDL_RenderClear(sdlRenderer);
-        SDL_RenderCopy(sdlRenderer, sdlTexture, &crop_Rect, &scale_Rect);	//crop_Rect如果为NULL，则默认整个画面的crop
-        SDL_RenderPresent(sdlRenderer);
-        //Delay 40ms
-     //   SDL_Delay(40);
-     
+		SDL_RenderPresent(sdlRenderer);
+
      	usleep(20000);
         inputcharNum=read(fd_tty,buf_tty,10);
         if(inputcharNum<0)
@@ -197,6 +200,10 @@ int main(int argc, char *argv[])
 		else
 		{
 			if(buf_tty[0] == 'q')	break;
+			else
+			{
+				
+			}
 		}
 
     }
