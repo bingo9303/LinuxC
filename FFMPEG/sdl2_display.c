@@ -52,7 +52,7 @@ void sdl2_display_frame(sdl2_display_info* sdl2_dev,SDL_Rect* crop,SDL_Rect* sca
 	unsigned int oneLineByteSize;
 	SDL_Rect crop_Rect,scale_Rect;
 	
-	oneLineByteSize = sdl2_dev->imageSize_width * sdl2_dev->windowsSize_height;
+	oneLineByteSize = sdl2_dev->imageSize_width * sdl2_dev->components;
 	if(crop == NULL)
 	{
 		crop_Rect.x = 0;

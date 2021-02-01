@@ -7,8 +7,9 @@
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/frame.h>
 #include <SDL2/SDL.h>
-
 
 
 typedef struct _sdl2_display_info
@@ -18,6 +19,7 @@ typedef struct _sdl2_display_info
 	
 	int imageSize_width;
 	int imageSize_height;
+	int components;
 	
 
 	char* imageFrameBuffer;		//Ò»Ö¡Í¼ÏñµÄbuff
