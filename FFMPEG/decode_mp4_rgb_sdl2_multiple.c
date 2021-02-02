@@ -14,15 +14,19 @@
 #include <sys/time.h>
 #include "sdl2_display.h"
 #include <getopt.h> 
+#include <pthread.h>
+
 
 #define ABS(x) ((x)<0?-(x):(x))
 
 
 #define TEST_ENABLE	1
 
+unsigned char alphaValue[5];
+unsigned char alphaFlag[5];	//1-淡出  2-淡入0-不做处理
 
 
-static const char short_options [] = "i:x:y:l:";  
+static const char short_options [] = "i:x:y:l:a:";  
   
 static const struct option  
 long_options [] = {  
@@ -30,9 +34,33 @@ long_options [] = {
         { "sizex",     	 no_argument,       	NULL,          'x' }, 
         { "sizey",       no_argument,           NULL,          'y' },  
         { "layer",       no_argument,           NULL,          'l' }, 
+        { "alpha",		 no_argument,           NULL,          'a' },
         { 0, 0, 0, 0 }  
 };  
-  
+
+
+void* task_alpha(void* args)
+{
+	sdl2_display_info* sdl2_dev = (sdl2_display_info*)args;
+	int delayTime = (sdl2_dev->alphaTime*1000)/255;
+	while(1)
+	{
+		if(alphaFlag[4] == 1)
+		{
+			alphaValue[4]++;
+			sdl2_SetAlpha(sdl2_dev,4,(alphaValue[4]&0xFF));
+			if(alphaValue[4] >= 0xFF)	alphaFlag[4] = 0;
+		}
+		else if(alphaFlag[4] == 2)
+		{
+			alphaValue[4]--;
+			sdl2_SetAlpha(sdl2_dev,4,(alphaValue[4]&0xFF));
+			if(alphaValue[4] <= 0)	alphaFlag[4] = 0;
+		}
+		usleep(delayTime);
+	}
+}
+
 
 
 int main(int argc, char *argv[])
@@ -47,6 +75,7 @@ int main(int argc, char *argv[])
 	SDL_Rect* crop;
 	sdl2_display_info sdl2_dev;
 	memset(&sdl2_dev,0,sizeof(sdl2_dev));
+	
 
 	if (argc < 2) 
 	{
@@ -83,6 +112,9 @@ int main(int argc, char *argv[])
 	        case 'l':  
 					sdl2_dev.layer = atoi(optarg);
 	                break;  
+			case 'a':
+					sdl2_dev.alphaTime = atoi(optarg);
+					break;
 	        default:  
 	                printf("invalid config argc %s\r\n",optarg);  
 	                exit (EXIT_FAILURE);  
@@ -107,8 +139,12 @@ int main(int argc, char *argv[])
 		sdl2_dev.layer = 4;
 	}
 
-	
+	if(sdl2_dev.alphaTime == 0)
+	{
+		sdl2_dev.alphaTime = 1000;
+	}
 
+	
 	fd_tty=open("/dev/tty",O_RDONLY|O_NONBLOCK);//用只读和非阻塞的方式打开文件dev/tty
     if(fd_tty<0)
     {
@@ -230,6 +266,9 @@ int main(int argc, char *argv[])
 
 	init_sdl2_display_one_input(&sdl2_dev);
 
+	pthread_t tid_alpha;
+	pthread_create(&tid_alpha,NULL,task_alpha,&sdl2_dev);//创建一个线程，用以淡入淡出
+
     //6.一帧一帧的读取压缩数据
     while (av_read_frame(pFormatCtx, packet) >= 0)
     {
@@ -349,9 +388,6 @@ int main(int argc, char *argv[])
 				{
 					usleep(delayTime);
 				}	
-				//usleep(10000);
-                //frame_count++;
-              //  printf("解码第%d帧\n",frame_count);
             }
         }
 		inputcharNum=read(fd_tty,buf_tty,10);
@@ -362,8 +398,24 @@ int main(int argc, char *argv[])
 		else
 		{
 			if(buf_tty[0] == 'q')	break;
+			else if(buf_tty[0] == 't')
+			{
+				int ret = 0;
+				ret = sdl2_GetAlpha(&sdl2_dev,4,&alphaValue[4]);
+				if(ret == 0)
+				{
+					if(alphaValue[4] != 0xFF)
+					{
+						alphaFlag[4] = 1;
+					}
+					else
+					{
+						alphaFlag[4] = 2;
+					}
+				}
+			}
 		}
-
+		
         av_packet_unref(packet);		//av_packet_unref是清空里边的数据,不是释放
     }
 

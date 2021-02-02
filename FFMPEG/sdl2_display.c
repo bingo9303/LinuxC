@@ -42,6 +42,8 @@ int init_sdl2_display_one_input(sdl2_display_info* sdl2_dev)
 	for(i=0;i<sdl2_dev->layer;i++)
 	{
 		sdl2_dev->sdlTexture[i] = SDL_CreateTexture(sdl2_dev->sdlRenderer, sdl2_dev->pixformat, SDL_TEXTUREACCESS_STREAMING, sdl2_dev->imageSize_width, sdl2_dev->imageSize_height);
+		SDL_SetTextureBlendMode(sdl2_dev->sdlTexture[i],SDL_BLENDMODE_BLEND);
+		SDL_SetTextureAlphaMod(sdl2_dev->sdlTexture[i],0xFF);
 	}
 	
     return (0);
@@ -184,6 +186,17 @@ void sdl2_present_frame(sdl2_display_info* sdl2_dev)
 	SDL_RenderPresent(sdl2_dev->sdlRenderer);
 }
 
+void sdl2_SetAlpha(sdl2_display_info* sdl2_dev,int layer,unsigned char value)
+{
+	SDL_SetTextureAlphaMod(sdl2_dev->sdlTexture[layer],value);
+}
+
+int sdl2_GetAlpha(sdl2_display_info* sdl2_dev,int layer,unsigned char* value)
+{
+	return SDL_GetTextureAlphaMod(sdl2_dev->sdlTexture[layer],value);
+}
+
+
 
 void sdl2_clear_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev)
 {
@@ -194,5 +207,6 @@ void sdl2_present_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_de
 {
 	SDL_RenderPresent(sdl2_dev->sdlRenderer);
 }
+
 
 

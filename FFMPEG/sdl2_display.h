@@ -24,6 +24,7 @@ typedef struct _sdl2_display_info
 	int components;
 	int layer;
 	int currentLayer;
+	int alphaTime;
 
 	char* imageFrameBuffer;		//Ò»Ö¡Í¼ÏñµÄbuff
 
@@ -68,6 +69,8 @@ void quit_sdl2_display_one_input(sdl2_display_info* sdl2_dev);
 void sdl2_display_frame(sdl2_display_info* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
 void sdl2_clear_frame(sdl2_display_info* sdl2_dev);
 void sdl2_present_frame(sdl2_display_info* sdl2_dev);
+void sdl2_SetAlpha(sdl2_display_info* sdl2_dev,int layer,unsigned char value);
+int sdl2_GetAlpha(sdl2_display_info* sdl2_dev,int layer,unsigned char* value);
 
 int init_sdl2_display_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
 void sdl2_display_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
