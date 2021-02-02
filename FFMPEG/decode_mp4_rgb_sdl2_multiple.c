@@ -12,13 +12,17 @@
 #include <sys/ioctl.h> 
 #include <errno.h>
 #include <sys/time.h>
-#include <getopt.h> 
 #include "sdl2_display.h"
+#include <getopt.h> 
+
 #define ABS(x) ((x)<0?-(x):(x))
 
 
+#define TEST_ENABLE	1
 
-static const char short_options [] = "i:x:y:";  
+
+
+static const char short_options [] = "i:x:y:l:";  
   
 static const struct option  
 long_options [] = {  
@@ -28,25 +32,27 @@ long_options [] = {
         { "layer",       no_argument,           NULL,          'l' }, 
         { 0, 0, 0, 0 }  
 };  
+  
 
 
 int main(int argc, char *argv[])
 {
-    //获取输入输出文件名
     int fd_tty,inputcharNum=0;
 	char buf_tty[10];
-	sdl2_display_info sdl2_dev;
 	double frame_rate = 0;
-	char inputFile[100] = {0};
 	int frame_time = 0,delayTime;
 	struct timeval tv[2];
+	char inputFile[100] = {0};
+	SDL_Rect* scale;
+	SDL_Rect* crop;
+	sdl2_display_info sdl2_dev;
 	memset(&sdl2_dev,0,sizeof(sdl2_dev));
 
 	if (argc < 2) 
-    {
-        printf("insuffient auguments");
-        exit(-1);
-    }
+	{
+		printf("insuffient auguments");
+		exit(-1);
+	}
 
 	for (;;) 
     {  
@@ -72,14 +78,18 @@ int main(int argc, char *argv[])
 					break;
 	        case 'y':  
 	                sdl2_dev.windowsSize_height = atoi(optarg);
-	                break;   
+	                break;  
+
+	        case 'l':  
+					sdl2_dev.layer = atoi(optarg);
+	                break;  
 	        default:  
 	                printf("invalid config argc %s\r\n",optarg);  
 	                exit (EXIT_FAILURE);  
 	    }  
     }  
 
-	
+
 	if(inputFile[0] == 0)
 	{
 		printf("no input file\r\n");
@@ -92,6 +102,13 @@ int main(int argc, char *argv[])
 		sdl2_dev.windowsSize_height = 540;
 	}
 
+	if(sdl2_dev.layer == 0)
+	{
+		sdl2_dev.layer = 4;
+	}
+
+	
+
 	fd_tty=open("/dev/tty",O_RDONLY|O_NONBLOCK);//用只读和非阻塞的方式打开文件dev/tty
     if(fd_tty<0)
     {
@@ -99,14 +116,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-	
+	scale = malloc(sizeof(SDL_Rect) * sdl2_dev.layer);
+	crop = malloc(sizeof(SDL_Rect) * sdl2_dev.layer);
 
 	sdl2_dev.pixformat = SDL_PIXELFORMAT_RGB24;
 	sdl2_dev.components = 3;
 	sdl2_dev.windowsName = "play mp4";
-	//sdl2_dev.windowsSize_width = 960;
-	//sdl2_dev.windowsSize_height = 540;
-	sdl2_dev.layer = 1;
 	
     //1.注册所有组件
   //  av_register_all();
@@ -240,22 +255,102 @@ int main(int argc, char *argv[])
                 //3 7输入、输出画面一行的数据的大小 AVFrame 转换是一行一行转换的
                 //4 输入数据第一列要转码的位置 从0开始
                 //5 输入画面的高度
+                int currentLayer;
                 sws_scale(sws_ctx,(const uint8_t **) pFrame->data, pFrame->linesize, 0, pCodecCtx->height,
                           pFrameRGB->data, pFrameRGB->linesize);
-				sdl2_dev.imageFrameBuffer = pFrameRGB->data[0];
-				sdl2_dev.currentLayer = 0;
 				sdl2_clear_frame(&sdl2_dev);
-				sdl2_display_frame(&sdl2_dev,NULL,NULL);
+				for(currentLayer=0;currentLayer<sdl2_dev.layer;currentLayer++)
+				{
+				#if (TEST_ENABLE==0)	
+					sdl2_dev.imageFrameBuffer = pFrameRGB->data[0];
+					sdl2_dev.currentLayer = currentLayer;
+					scale[currentLayer].x = (currentLayer%2)*(sdl2_dev.windowsSize_width/2);
+			        scale[currentLayer].y = (currentLayer/2)*(sdl2_dev.windowsSize_height/2);
+			        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
+			        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+					sdl2_display_frame(&sdl2_dev,NULL,&scale[currentLayer]);
+				#else
+					sdl2_dev.imageFrameBuffer = pFrameRGB->data[0];
+					sdl2_dev.currentLayer = currentLayer;
+					
+
+					if(currentLayer == 0)
+					{
+						crop[currentLayer].x = 0;
+						crop[currentLayer].y = 0;
+						crop[currentLayer].w = sdl2_dev.imageSize_width;
+						crop[currentLayer].h = sdl2_dev.imageSize_height;
+
+						scale[currentLayer].x = 0;
+				        scale[currentLayer].y = 0;
+				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
+				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+					}
+					else if(currentLayer == 1)
+					{
+						crop[currentLayer].x = 0;
+						crop[currentLayer].y = 0;
+						crop[currentLayer].w = sdl2_dev.imageSize_width;
+						crop[currentLayer].h = sdl2_dev.imageSize_height;
+
+						scale[currentLayer].x = sdl2_dev.windowsSize_width/2;
+				        scale[currentLayer].y = 0;
+				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
+				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+					}
+					else if(currentLayer == 2)
+					{
+						crop[currentLayer].x = 0;
+						crop[currentLayer].y = 0;
+						crop[currentLayer].w = sdl2_dev.imageSize_width;
+						crop[currentLayer].h = sdl2_dev.imageSize_height;
+
+						scale[currentLayer].x = 0;
+				        scale[currentLayer].y = sdl2_dev.windowsSize_height/2;
+				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
+				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+					}
+					else if(currentLayer == 3)
+					{
+						crop[currentLayer].x = 0;
+						crop[currentLayer].y = 0;
+						crop[currentLayer].w = sdl2_dev.imageSize_width;
+						crop[currentLayer].h = sdl2_dev.imageSize_height;
+
+						scale[currentLayer].x = sdl2_dev.windowsSize_width/2;
+				        scale[currentLayer].y = sdl2_dev.windowsSize_height/2;
+				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
+				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+					}			
+					else if(currentLayer == 4)
+					{
+						crop[currentLayer].x = 0;
+						crop[currentLayer].y = 0;
+						crop[currentLayer].w = sdl2_dev.imageSize_width/2;
+						crop[currentLayer].h = sdl2_dev.imageSize_height/2;
+
+						scale[currentLayer].x = sdl2_dev.windowsSize_width/4;
+				        scale[currentLayer].y = sdl2_dev.windowsSize_height/4;
+				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
+				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+					}	
+					
+					sdl2_display_frame(&sdl2_dev,&crop[currentLayer],&scale[currentLayer]);
+
+				#endif
+
+					
+					
+				}
 				sdl2_present_frame(&sdl2_dev);
 				gettimeofday(&tv[1],NULL);
 				delayTime = frame_time - ABS(tv[1].tv_usec - tv[0].tv_usec);
 				if(delayTime > 0)
 				{
 					usleep(delayTime);
-				}				
-				
-				
-                frame_count++;
+				}	
+				//usleep(10000);
+                //frame_count++;
               //  printf("解码第%d帧\n",frame_count);
             }
         }
@@ -283,6 +378,8 @@ int main(int argc, char *argv[])
 	avcodec_free_context(&pCodecCtx);
     avformat_close_input(&pFormatCtx);
     avformat_free_context(pFormatCtx);
+	free(scale);
+	free(crop);
 	printf("free mem\r\n");
 	return 0;
 }

@@ -12,6 +12,8 @@
 #include <SDL2/SDL.h>
 
 
+#define MAX_LAYER_NUM		5
+
 typedef struct _sdl2_display_info
 {
 	int windowsSize_width;
@@ -20,7 +22,8 @@ typedef struct _sdl2_display_info
 	int imageSize_width;
 	int imageSize_height;
 	int components;
-	
+	int layer;
+	int currentLayer;
 
 	char* imageFrameBuffer;		//一帧图像的buff
 
@@ -29,16 +32,48 @@ typedef struct _sdl2_display_info
 
 	SDL_Window *screen;
 	SDL_Renderer* sdlRenderer;
-	SDL_Texture* sdlTexture;
+	SDL_Texture** sdlTexture;
+	
 }sdl2_display_info;
 
 
 
-void usage(char *msg);
-int init_sdl2_display_one_layer(sdl2_display_info* sdl2_dev);
-void quit_sdl2_display_one_layer(void);
-void sdl2_display_frame(sdl2_display_info* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
+typedef struct _sdl2_display_info_multiple_input
+{
+	int windowsSize_width;
+	int windowsSize_height;
+	
+	int imageSize_width[MAX_LAYER_NUM];
+	int imageSize_height[MAX_LAYER_NUM];
+	int components[MAX_LAYER_NUM];
+	int layer;
+	int currentLayer;
 
+	char* imageFrameBuffer[MAX_LAYER_NUM];		//一帧图像的buff
+
+	char* windowsName;
+	int pixformat[MAX_LAYER_NUM];
+
+	SDL_Window *screen;
+	SDL_Renderer* sdlRenderer;
+	SDL_Texture** sdlTexture;
+	
+}sdl2_display_info_multiple_input;
+
+
+
+
+int init_sdl2_display_one_input(sdl2_display_info* sdl2_dev);
+void quit_sdl2_display_one_input(sdl2_display_info* sdl2_dev);
+void sdl2_display_frame(sdl2_display_info* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
+void sdl2_clear_frame(sdl2_display_info* sdl2_dev);
+void sdl2_present_frame(sdl2_display_info* sdl2_dev);
+
+int init_sdl2_display_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
+void sdl2_display_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
+void quit_sdl2_display_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
+void sdl2_clear_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
+void sdl2_present_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
 
 
 
