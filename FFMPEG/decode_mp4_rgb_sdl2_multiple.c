@@ -22,7 +22,6 @@
 
 #define TEST_ENABLE	1
 
-unsigned char alphaValue[5];
 unsigned char alphaFlag[5];	//1-淡出  2-淡入0-不做处理
 
 
@@ -43,19 +42,23 @@ void* task_alpha(void* args)
 {
 	sdl2_display_info* sdl2_dev = (sdl2_display_info*)args;
 	int delayTime = (sdl2_dev->alphaTime*1000)/255;
+	int layerCh;
 	while(1)
 	{
-		if(alphaFlag[4] == 1)
+		for(layerCh=0;layerCh<sdl2_dev->outputChNum;layerCh++)
 		{
-			alphaValue[4]++;
-			sdl2_SetAlpha(sdl2_dev,4,(alphaValue[4]&0xFF));
-			if(alphaValue[4] >= 0xFF)	alphaFlag[4] = 0;
-		}
-		else if(alphaFlag[4] == 2)
-		{
-			alphaValue[4]--;
-			sdl2_SetAlpha(sdl2_dev,4,(alphaValue[4]&0xFF));
-			if(alphaValue[4] <= 0)	alphaFlag[4] = 0;
+			if(alphaFlag[layerCh] == 1)
+			{
+				sdl2_dev->outLayerAlpha.alpha[layerCh]++;
+				sdl2_SetAlpha(sdl2_dev,layerCh,(sdl2_dev->outLayerAlpha.alpha[layerCh]&0xFF));
+				if(sdl2_dev->outLayerAlpha.alpha[layerCh] >= 0xFF)	alphaFlag[layerCh] = 0;
+			}
+			else if(alphaFlag[layerCh] == 2)
+			{
+				sdl2_dev->outLayerAlpha.alpha[layerCh]--;
+				sdl2_SetAlpha(sdl2_dev,layerCh,(sdl2_dev->outLayerAlpha.alpha[layerCh]&0xFF));
+				if(sdl2_dev->outLayerAlpha.alpha[layerCh] <= 0)	alphaFlag[layerCh] = 0;
+			}
 		}
 		usleep(delayTime);
 	}
@@ -71,8 +74,7 @@ int main(int argc, char *argv[])
 	int frame_time = 0,delayTime;
 	struct timeval tv[2];
 	char inputFile[100] = {0};
-	SDL_Rect* scale;
-	SDL_Rect* crop;
+
 	sdl2_display_info sdl2_dev;
 	memset(&sdl2_dev,0,sizeof(sdl2_dev));
 	
@@ -110,7 +112,7 @@ int main(int argc, char *argv[])
 	                break;  
 
 	        case 'l':  
-					sdl2_dev.layer = atoi(optarg);
+					sdl2_dev.outputChNum = atoi(optarg);
 	                break;  
 			case 'a':
 					sdl2_dev.alphaTime = atoi(optarg);
@@ -134,9 +136,9 @@ int main(int argc, char *argv[])
 		sdl2_dev.windowsSize_height = 540;
 	}
 
-	if(sdl2_dev.layer == 0)
+	if(sdl2_dev.outputChNum == 0)
 	{
-		sdl2_dev.layer = 4;
+		sdl2_dev.outputChNum = 4;
 	}
 
 	if(sdl2_dev.alphaTime == 0)
@@ -144,6 +146,9 @@ int main(int argc, char *argv[])
 		sdl2_dev.alphaTime = 1000;
 	}
 
+	sdl2_dev.inputSourceNum = 1;
+
+	
 	
 	fd_tty=open("/dev/tty",O_RDONLY|O_NONBLOCK);//用只读和非阻塞的方式打开文件dev/tty
     if(fd_tty<0)
@@ -152,11 +157,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-	scale = malloc(sizeof(SDL_Rect) * sdl2_dev.layer);
-	crop = malloc(sizeof(SDL_Rect) * sdl2_dev.layer);
 
-	sdl2_dev.pixformat = SDL_PIXELFORMAT_RGB24;
-	sdl2_dev.components = 3;
+	sdl2_dev.pixformat[0] = SDL_PIXELFORMAT_RGB24;
+	sdl2_dev.components[0] = 3;
 	sdl2_dev.windowsName = "play mp4";
 	
     //1.注册所有组件
@@ -223,8 +226,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-	sdl2_dev.imageSize_width = pCodecCtx->width;
-	sdl2_dev.imageSize_height = pCodecCtx->height;
+	sdl2_dev.imageSize_width[0] = pCodecCtx->width;
+	sdl2_dev.imageSize_height[0] = pCodecCtx->height;
+	sdl2_dev.oneLineByteSize[0] = pCodecCtx->width * sdl2_dev.components[0];
 	if((pFormatCtx->streams[v_stream_idx]->avg_frame_rate.num != 0) && (pFormatCtx->streams[v_stream_idx]->avg_frame_rate.den != 0))
 	{
 		frame_rate = (double)pFormatCtx->streams[v_stream_idx]->avg_frame_rate.num/pFormatCtx->streams[v_stream_idx]->avg_frame_rate.den;
@@ -264,7 +268,13 @@ int main(int argc, char *argv[])
 	
     int frame_count = 0;
 
-	init_sdl2_display_one_input(&sdl2_dev);
+	for(i=0;i<sdl2_dev.outputChNum;i++)
+	{
+		sdl2_dev.layerInfo[i].inputPort = 0;
+		sdl2_dev.outLayerAlpha.alpha[i] = 0xFF;
+	}
+
+	init_sdl2_display(&sdl2_dev);
 
 	pthread_t tid_alpha;
 	pthread_create(&tid_alpha,NULL,task_alpha,&sdl2_dev);//创建一个线程，用以淡入淡出
@@ -298,88 +308,72 @@ int main(int argc, char *argv[])
                 sws_scale(sws_ctx,(const uint8_t **) pFrame->data, pFrame->linesize, 0, pCodecCtx->height,
                           pFrameRGB->data, pFrameRGB->linesize);
 				sdl2_clear_frame(&sdl2_dev);
-				for(currentLayer=0;currentLayer<sdl2_dev.layer;currentLayer++)
+				for(currentLayer=0;currentLayer<sdl2_dev.outputChNum;currentLayer++)
 				{
-				#if (TEST_ENABLE==0)	
-					sdl2_dev.imageFrameBuffer = pFrameRGB->data[0];
-					sdl2_dev.currentLayer = currentLayer;
-					scale[currentLayer].x = (currentLayer%2)*(sdl2_dev.windowsSize_width/2);
-			        scale[currentLayer].y = (currentLayer/2)*(sdl2_dev.windowsSize_height/2);
-			        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
-			        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
-					sdl2_display_frame(&sdl2_dev,NULL,&scale[currentLayer]);
-				#else
-					sdl2_dev.imageFrameBuffer = pFrameRGB->data[0];
-					sdl2_dev.currentLayer = currentLayer;
+					sdl2_dev.imageFrameBuffer[0] = pFrameRGB->data[0];
 					
-
 					if(currentLayer == 0)
 					{
-						crop[currentLayer].x = 0;
-						crop[currentLayer].y = 0;
-						crop[currentLayer].w = sdl2_dev.imageSize_width;
-						crop[currentLayer].h = sdl2_dev.imageSize_height;
+						sdl2_dev.layerInfo[currentLayer].crop.x = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.y = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.w = sdl2_dev.imageSize_width[0];
+						sdl2_dev.layerInfo[currentLayer].crop.h = sdl2_dev.imageSize_height[0];
 
-						scale[currentLayer].x = 0;
-				        scale[currentLayer].y = 0;
-				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
-				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+						sdl2_dev.layerInfo[currentLayer].scale.x = 0;
+				       	sdl2_dev.layerInfo[currentLayer].scale.y = 0;
+				        sdl2_dev.layerInfo[currentLayer].scale.w = sdl2_dev.windowsSize_width/2;		
+				        sdl2_dev.layerInfo[currentLayer].scale.h = sdl2_dev.windowsSize_height/2;
 					}
 					else if(currentLayer == 1)
 					{
-						crop[currentLayer].x = 0;
-						crop[currentLayer].y = 0;
-						crop[currentLayer].w = sdl2_dev.imageSize_width;
-						crop[currentLayer].h = sdl2_dev.imageSize_height;
+						sdl2_dev.layerInfo[currentLayer].crop.x = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.y = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.w = sdl2_dev.imageSize_width[0];
+						sdl2_dev.layerInfo[currentLayer].crop.h = sdl2_dev.imageSize_height[0];
 
-						scale[currentLayer].x = sdl2_dev.windowsSize_width/2;
-				        scale[currentLayer].y = 0;
-				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
-				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+						sdl2_dev.layerInfo[currentLayer].scale.x = sdl2_dev.windowsSize_width/2;
+				        sdl2_dev.layerInfo[currentLayer].scale.y = 0;
+				        sdl2_dev.layerInfo[currentLayer].scale.w = sdl2_dev.windowsSize_width/2;		
+				        sdl2_dev.layerInfo[currentLayer].scale.h = sdl2_dev.windowsSize_height/2;
 					}
 					else if(currentLayer == 2)
 					{
-						crop[currentLayer].x = 0;
-						crop[currentLayer].y = 0;
-						crop[currentLayer].w = sdl2_dev.imageSize_width;
-						crop[currentLayer].h = sdl2_dev.imageSize_height;
+						sdl2_dev.layerInfo[currentLayer].crop.x = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.y = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.w = sdl2_dev.imageSize_width[0];
+						sdl2_dev.layerInfo[currentLayer].crop.h = sdl2_dev.imageSize_height[0];
 
-						scale[currentLayer].x = 0;
-				        scale[currentLayer].y = sdl2_dev.windowsSize_height/2;
-				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
-				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+						sdl2_dev.layerInfo[currentLayer].scale.x = 0;
+				        sdl2_dev.layerInfo[currentLayer].scale.y = sdl2_dev.windowsSize_height/2;
+				        sdl2_dev.layerInfo[currentLayer].scale.w = sdl2_dev.windowsSize_width/2;		
+				        sdl2_dev.layerInfo[currentLayer].scale.h = sdl2_dev.windowsSize_height/2;
 					}
 					else if(currentLayer == 3)
 					{
-						crop[currentLayer].x = 0;
-						crop[currentLayer].y = 0;
-						crop[currentLayer].w = sdl2_dev.imageSize_width;
-						crop[currentLayer].h = sdl2_dev.imageSize_height;
+						sdl2_dev.layerInfo[currentLayer].crop.x = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.y = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.w = sdl2_dev.imageSize_width[0];
+						sdl2_dev.layerInfo[currentLayer].crop.h = sdl2_dev.imageSize_height[0];
 
-						scale[currentLayer].x = sdl2_dev.windowsSize_width/2;
-				        scale[currentLayer].y = sdl2_dev.windowsSize_height/2;
-				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
-				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+						sdl2_dev.layerInfo[currentLayer].scale.x = sdl2_dev.windowsSize_width/2;
+				        sdl2_dev.layerInfo[currentLayer].scale.y = sdl2_dev.windowsSize_height/2;
+				        sdl2_dev.layerInfo[currentLayer].scale.w = sdl2_dev.windowsSize_width/2;		
+				        sdl2_dev.layerInfo[currentLayer].scale.h = sdl2_dev.windowsSize_height/2;
 					}			
 					else if(currentLayer == 4)
 					{
-						crop[currentLayer].x = 0;
-						crop[currentLayer].y = 0;
-						crop[currentLayer].w = sdl2_dev.imageSize_width/2;
-						crop[currentLayer].h = sdl2_dev.imageSize_height/2;
+						sdl2_dev.layerInfo[currentLayer].crop.x = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.y = 0;
+						sdl2_dev.layerInfo[currentLayer].crop.w = sdl2_dev.imageSize_width[0]/2;
+						sdl2_dev.layerInfo[currentLayer].crop.h = sdl2_dev.imageSize_height[0]/2;
 
-						scale[currentLayer].x = sdl2_dev.windowsSize_width/4;
-				        scale[currentLayer].y = sdl2_dev.windowsSize_height/4;
-				        scale[currentLayer].w = sdl2_dev.windowsSize_width/2;		
-				        scale[currentLayer].h = sdl2_dev.windowsSize_height/2;
+						sdl2_dev.layerInfo[currentLayer].scale.x = sdl2_dev.windowsSize_width/4;
+				        sdl2_dev.layerInfo[currentLayer].scale.y = sdl2_dev.windowsSize_height/4;
+				        sdl2_dev.layerInfo[currentLayer].scale.w = sdl2_dev.windowsSize_width/2;		
+				        sdl2_dev.layerInfo[currentLayer].scale.h = sdl2_dev.windowsSize_height/2;
 					}	
 					
-					sdl2_display_frame(&sdl2_dev,&crop[currentLayer],&scale[currentLayer]);
-
-				#endif
-
-					
-					
+					sdl2_display_frame(&sdl2_dev,currentLayer);	
 				}
 				sdl2_present_frame(&sdl2_dev);
 				gettimeofday(&tv[1],NULL);
@@ -401,16 +395,21 @@ int main(int argc, char *argv[])
 			else if(buf_tty[0] == 't')
 			{
 				int ret = 0;
-				ret = sdl2_GetAlpha(&sdl2_dev,4,&alphaValue[4]);
-				if(ret == 0)
+				int layerCh = buf_tty[1] - '0';
+				OutLayerSetting* outLayerAlpha = &sdl2_dev.outLayerAlpha;
+				if((layerCh>=1) && (layerCh<=sdl2_dev.outputChNum))
 				{
-					if(alphaValue[4] != 0xFF)
+					ret = sdl2_GetAlpha(&sdl2_dev,layerCh-1,&outLayerAlpha->alpha[layerCh-1]);
+					if(ret == 0)
 					{
-						alphaFlag[4] = 1;
-					}
-					else
-					{
-						alphaFlag[4] = 2;
+						if(outLayerAlpha->alpha[layerCh-1] != 0xFF)
+						{
+							alphaFlag[layerCh-1] = 1;
+						}
+						else
+						{
+							alphaFlag[layerCh-1] = 2;
+						}
 					}
 				}
 			}
@@ -419,7 +418,7 @@ int main(int argc, char *argv[])
         av_packet_unref(packet);		//av_packet_unref是清空里边的数据,不是释放
     }
 
-	quit_sdl2_display_one_input(&sdl2_dev);
+	quit_sdl2_display(&sdl2_dev);
 
 	sws_freeContext(sws_ctx);
 	av_free(out_buffer);
@@ -430,8 +429,6 @@ int main(int argc, char *argv[])
 	avcodec_free_context(&pCodecCtx);
     avformat_close_input(&pFormatCtx);
     avformat_free_context(pFormatCtx);
-	free(scale);
-	free(crop);
 	printf("free mem\r\n");
 	return 0;
 }

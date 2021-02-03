@@ -12,71 +12,67 @@
 #include <SDL2/SDL.h>
 
 
-#define MAX_LAYER_NUM		5
+#define MAX_CH_NUM		5
 
-typedef struct _sdl2_display_info
+
+typedef struct
 {
-	int windowsSize_width;
-	int windowsSize_height;
-	
-	int imageSize_width;
-	int imageSize_height;
-	int components;
-	int layer;
-	int currentLayer;
-	int alphaTime;
+	char inputPort;		// 0 ~ 3  port
+	char freeze;        // 0 -- off, 1 -- on
+	char horizontalFlip; // 0 -- off, 1 -- on
+	char rotate; // 0 -- off, 1 -- left rotation, 2 -- right rotation.
+	SDL_Rect crop;
+	SDL_Rect scale;	
+}LayerSetting;
 
-	char* imageFrameBuffer;		//一帧图像的buff
 
-	char* windowsName;
-	int pixformat;
 
-	SDL_Window *screen;
-	SDL_Renderer* sdlRenderer;
-	SDL_Texture** sdlTexture;
-	
-}sdl2_display_info;
-
+typedef struct
+{
+	unsigned char layer[MAX_CH_NUM];
+	unsigned char alpha[MAX_CH_NUM];
+} OutLayerSetting;
 
 
 typedef struct _sdl2_display_info_multiple_input
 {
+/* 输出参数 */
+	int outputChNum;
+	char* windowsName;
 	int windowsSize_width;
 	int windowsSize_height;
-	
-	int imageSize_width[MAX_LAYER_NUM];
-	int imageSize_height[MAX_LAYER_NUM];
-	int components[MAX_LAYER_NUM];
-	int layer;
-	int currentLayer;
 
-	char* imageFrameBuffer[MAX_LAYER_NUM];		//一帧图像的buff
+/* 输入参数 */
+	int inputSourceNum;	
+	int imageSize_width[MAX_CH_NUM];
+	int imageSize_height[MAX_CH_NUM];
+	char* imageFrameBuffer[MAX_CH_NUM];		//一帧图像的buff	
+	int pixformat[MAX_CH_NUM];
+	int components[MAX_CH_NUM];
+	unsigned int oneLineByteSize[MAX_CH_NUM];
+/* 图层参数 */
+	LayerSetting layerInfo[MAX_CH_NUM];
+	OutLayerSetting outLayerAlpha;
+	int alphaTime;
 
-	char* windowsName;
-	int pixformat[MAX_LAYER_NUM];
-
+/*  SDL2 参数 */
 	SDL_Window *screen;
 	SDL_Renderer* sdlRenderer;
-	SDL_Texture** sdlTexture;
-	
-}sdl2_display_info_multiple_input;
+	SDL_Texture* sdlTexture[MAX_CH_NUM];
+}sdl2_display_info;
 
 
-
-
-int init_sdl2_display_one_input(sdl2_display_info* sdl2_dev);
-void quit_sdl2_display_one_input(sdl2_display_info* sdl2_dev);
-void sdl2_display_frame(sdl2_display_info* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
+int init_sdl2_display(sdl2_display_info* sdl2_dev);
+void quit_sdl2_display(sdl2_display_info* sdl2_dev);
+void sdl2_display_frame(sdl2_display_info* sdl2_dev,int layerCh);
 void sdl2_clear_frame(sdl2_display_info* sdl2_dev);
 void sdl2_present_frame(sdl2_display_info* sdl2_dev);
-void sdl2_SetAlpha(sdl2_display_info* sdl2_dev,int layer,unsigned char value);
-int sdl2_GetAlpha(sdl2_display_info* sdl2_dev,int layer,unsigned char* value);
+void sdl2_SetAlpha(sdl2_display_info* sdl2_dev,int layerCh,unsigned char value);
+int sdl2_GetAlpha(sdl2_display_info* sdl2_dev,int layerCh,unsigned char* value);
 
-int init_sdl2_display_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
-void sdl2_display_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev,SDL_Rect* crop,SDL_Rect* scale);
-void quit_sdl2_display_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
-void sdl2_clear_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
-void sdl2_present_frame_multiple_input(sdl2_display_info_multiple_input* sdl2_dev);
+
+
+
 
 
 
