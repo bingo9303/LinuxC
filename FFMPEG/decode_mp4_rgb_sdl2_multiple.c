@@ -22,7 +22,6 @@
 
 #define TEST_ENABLE	1
 
-unsigned char alphaFlag[5];	//1-淡出  2-淡入0-不做处理
 
 
 static const char short_options [] = "i:x:y:l:a:";  
@@ -47,17 +46,19 @@ void* task_alpha(void* args)
 	{
 		for(layerCh=0;layerCh<sdl2_dev->outputChNum;layerCh++)
 		{
-			if(alphaFlag[layerCh] == 1)
+			if(sdl2_dev->outLayerAlpha.alphaFlag[layerCh] == 1)
 			{
 				sdl2_dev->outLayerAlpha.alpha[layerCh]++;
 				sdl2_SetAlpha(sdl2_dev,layerCh,(sdl2_dev->outLayerAlpha.alpha[layerCh]&0xFF));
-				if(sdl2_dev->outLayerAlpha.alpha[layerCh] >= 0xFF)	alphaFlag[layerCh] = 0;
+				if(sdl2_dev->outLayerAlpha.alpha[layerCh] >= 0xFF)	
+					sdl2_dev->outLayerAlpha.alphaFlag[layerCh] = 0;
 			}
-			else if(alphaFlag[layerCh] == 2)
+			else if(sdl2_dev->outLayerAlpha.alphaFlag[layerCh] == 2)
 			{
 				sdl2_dev->outLayerAlpha.alpha[layerCh]--;
 				sdl2_SetAlpha(sdl2_dev,layerCh,(sdl2_dev->outLayerAlpha.alpha[layerCh]&0xFF));
-				if(sdl2_dev->outLayerAlpha.alpha[layerCh] <= 0)	alphaFlag[layerCh] = 0;
+				if(sdl2_dev->outLayerAlpha.alpha[layerCh] <= 0)	
+					sdl2_dev->outLayerAlpha.alphaFlag[layerCh] = 0;
 			}
 		}
 		usleep(delayTime);
@@ -70,9 +71,8 @@ int main(int argc, char *argv[])
 {
     int fd_tty,inputcharNum=0;
 	char buf_tty[10];
-	double frame_rate = 0;
-	int frame_time = 0,delayTime;
 	struct timeval tv[2];
+	int delayTime;
 	char inputFile[100] = {0};
 
 	sdl2_display_info sdl2_dev;
@@ -231,8 +231,8 @@ int main(int argc, char *argv[])
 	sdl2_dev.oneLineByteSize[0] = pCodecCtx->width * sdl2_dev.components[0];
 	if((pFormatCtx->streams[v_stream_idx]->avg_frame_rate.num != 0) && (pFormatCtx->streams[v_stream_idx]->avg_frame_rate.den != 0))
 	{
-		frame_rate = (double)pFormatCtx->streams[v_stream_idx]->avg_frame_rate.num/pFormatCtx->streams[v_stream_idx]->avg_frame_rate.den;
-		frame_time = (int)(1000000/frame_rate);
+		sdl2_dev.frame_rate[0] = (double)pFormatCtx->streams[v_stream_idx]->avg_frame_rate.num/pFormatCtx->streams[v_stream_idx]->avg_frame_rate.den;
+		sdl2_dev.frame_time[0] = (int)(1000000/sdl2_dev.frame_rate[0]);
 	}
 	
 
@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
     printf("video format：%s\r\n",pFormatCtx->iformat->name);
     printf("video time：%d\r\n", (int)(pFormatCtx->duration)/1000000);
     printf("video sizeX=%d,sizeY=%d\r\n",pCodecCtx->width,pCodecCtx->height);
-	printf("video fps=%4.2f\r\n",frame_rate);
+	printf("video fps=%4.2f\r\n",sdl2_dev.frame_rate[0]);
     printf("video codec name：%s\r\n",pCodec->name);
 
     //准备读取
@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
 				}
 				sdl2_present_frame(&sdl2_dev);
 				gettimeofday(&tv[1],NULL);
-				delayTime = frame_time - ABS(tv[1].tv_usec - tv[0].tv_usec);
+				delayTime = sdl2_dev.frame_time[0] - ABS(tv[1].tv_usec - tv[0].tv_usec);
 				if(delayTime > 0)
 				{
 					usleep(delayTime);
@@ -404,11 +404,11 @@ int main(int argc, char *argv[])
 					{
 						if(outLayerAlpha->alpha[layerCh-1] != 0xFF)
 						{
-							alphaFlag[layerCh-1] = 1;
+							outLayerAlpha->alphaFlag[layerCh-1] = 1;
 						}
 						else
 						{
-							alphaFlag[layerCh-1] = 2;
+							outLayerAlpha->alphaFlag[layerCh-1] = 2;
 						}
 					}
 				}

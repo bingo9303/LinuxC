@@ -31,6 +31,7 @@ typedef struct
 {
 	unsigned char layer[MAX_CH_NUM];
 	unsigned char alpha[MAX_CH_NUM];
+	char alphaFlag[5];				//1-淡出  2-淡入0-不做处理
 } OutLayerSetting;
 
 
@@ -50,6 +51,8 @@ typedef struct _sdl2_display_info_multiple_input
 	int pixformat[MAX_CH_NUM];
 	int components[MAX_CH_NUM];
 	unsigned int oneLineByteSize[MAX_CH_NUM];
+	int frame_time[MAX_CH_NUM];
+	double frame_rate[MAX_CH_NUM];
 /* 图层参数 */
 	LayerSetting layerInfo[MAX_CH_NUM];
 	OutLayerSetting outLayerAlpha;
