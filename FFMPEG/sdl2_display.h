@@ -31,7 +31,7 @@ typedef struct
 {
 	unsigned char layer[MAX_CH_NUM];
 	unsigned char alpha[MAX_CH_NUM];
-	char alphaFlag[5];				//1-淡出  2-淡入0-不做处理
+	char alphaFlag[5];				//1-淡入  2-淡出0-不做处理
 } OutLayerSetting;
 
 
@@ -62,6 +62,19 @@ typedef struct _sdl2_display_info_multiple_input
 	SDL_Window *screen;
 	SDL_Renderer* sdlRenderer;
 	SDL_Texture* sdlTexture[MAX_CH_NUM];
+
+/* FFMEPH参数 */
+	AVFormatContext *pFormatCtx[MAX_CH_NUM];
+	AVCodecContext *pCodecCtx[MAX_CH_NUM];
+	AVCodec *pCodec[MAX_CH_NUM];
+	AVPacket *packet[MAX_CH_NUM];
+	AVFrame *pFrame[MAX_CH_NUM];
+	AVFrame *pFrameRGB[MAX_CH_NUM];
+	uint8_t *out_buffer[MAX_CH_NUM];
+	struct SwsContext *sws_ctx[MAX_CH_NUM];
+	int v_stream_idx[MAX_CH_NUM];
+
+	
 }sdl2_display_info;
 
 
@@ -72,6 +85,7 @@ void sdl2_clear_frame(sdl2_display_info* sdl2_dev);
 void sdl2_present_frame(sdl2_display_info* sdl2_dev);
 void sdl2_SetAlpha(sdl2_display_info* sdl2_dev,int layerCh,unsigned char value);
 int sdl2_GetAlpha(sdl2_display_info* sdl2_dev,int layerCh,unsigned char* value);
+void sdl2_clear_Texture(sdl2_display_info* sdl2_dev,int layerCh);
 
 
 
