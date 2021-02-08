@@ -12,7 +12,7 @@
 #include <sys/ioctl.h> 
 #include <errno.h>
 #include <sys/time.h>
-#include "sdl2_display.h"
+#include "sdl2_display_rk3399.h"
 #include <getopt.h> 
 #include <pthread.h>
 #include <semaphore.h>
@@ -198,6 +198,7 @@ void* task_decode_0(void* args)
 	while (av_read_frame(sdl2_dev->pFormatCtx[0], sdl2_dev->packet[0]) >= 0)
     {
     	if(stopAllTaskFlag == 1)	break;
+		
         if (sdl2_dev->packet[0]->stream_index == sdl2_dev->v_stream_idx[0])
         {
         	gettimeofday(&decode_tv[0][0],NULL);
@@ -214,7 +215,7 @@ void* task_decode_0(void* args)
             if (got_picture == 0)
             {
                 sws_scale(sdl2_dev->sws_ctx[0],(const uint8_t **) sdl2_dev->pFrame[0]->data, sdl2_dev->pFrame[0]->linesize, 0, sdl2_dev->pCodecCtx[0]->height,
-                          sdl2_dev->pFrameRGB[0]->data, sdl2_dev->pFrameRGB[0]->linesize);
+                          sdl2_dev->pFrameDecode[0]->data, sdl2_dev->pFrameDecode[0]->linesize);
 				gettimeofday(&decode_tv[0][1],NULL);
 				delayTime = sdl2_dev->frame_time[0]
 							- ABS(decode_tv[0][1].tv_usec - decode_tv[0][0].tv_usec)
@@ -224,7 +225,11 @@ void* task_decode_0(void* args)
 					//printf("0.delayTime = %d\r\n",delayTime);
 					usleep(delayTime);
 				}	
-				sem_post(&display_sem[0]);
+				if(sdl2_dev->outLayerAlpha.alpha[0] != 0)
+				{
+					sem_post(&display_sem[0]);
+				}	
+				
             }
         }		
         av_packet_unref(sdl2_dev->packet[0]);		//av_packet_unref是清空里边的数据,不是释放
@@ -234,9 +239,12 @@ void* task_decode_0(void* args)
 	while(sem_getvalue(&display_sem[0],&value) == 0)
 	{
 		if(stopAllTaskFlag == 1)	break;
-		if(value == 0)	break;
+		if(value == 0)	
+		{
+			break;
+		}
 	}
-
+	sem_post(&display_sem[0]);
 	printf("decode 0 end\r\n");
 	return (void*)0;
 }
@@ -250,6 +258,7 @@ void* task_decode_1(void* args)
 	while (av_read_frame(sdl2_dev->pFormatCtx[1], sdl2_dev->packet[1]) >= 0)
     {
     	if(stopAllTaskFlag == 1)	break;
+		
         if (sdl2_dev->packet[1]->stream_index == sdl2_dev->v_stream_idx[1])
         {
         	gettimeofday(&decode_tv[1][0],NULL);
@@ -266,7 +275,7 @@ void* task_decode_1(void* args)
             if (got_picture == 0)
             {
                 sws_scale(sdl2_dev->sws_ctx[1],(const uint8_t **) sdl2_dev->pFrame[1]->data, sdl2_dev->pFrame[1]->linesize, 0, sdl2_dev->pCodecCtx[1]->height,
-                          sdl2_dev->pFrameRGB[1]->data, sdl2_dev->pFrameRGB[1]->linesize);
+                          sdl2_dev->pFrameDecode[1]->data, sdl2_dev->pFrameDecode[1]->linesize);
 				gettimeofday(&decode_tv[1][1],NULL);
 				delayTime = sdl2_dev->frame_time[1]
 							- ABS(decode_tv[1][1].tv_usec - decode_tv[1][0].tv_usec)
@@ -276,7 +285,11 @@ void* task_decode_1(void* args)
 					//printf("1.delayTime = %d\r\n",delayTime);
 					usleep(delayTime);
 				}	
-				sem_post(&display_sem[1]);
+				if(sdl2_dev->outLayerAlpha.alpha[1] != 0)
+				{
+					sem_post(&display_sem[1]);
+				}
+				
 				
             }
         }		
@@ -286,8 +299,13 @@ void* task_decode_1(void* args)
 	while(sem_getvalue(&display_sem[1],&value) == 0)
 	{
 		if(stopAllTaskFlag == 1)	break;
-		if(value == 0)	break;
+		if(value == 0)	
+		{
+			
+			break;
+		}
 	}
+	sem_post(&display_sem[1]);
 	printf("decode 1 end\r\n");
 	return (void*)0;
 }
@@ -313,11 +331,17 @@ void* task_display_0(void* args)
 	sdl2_display_info* sdl2_dev = (sdl2_display_info*)args;
 	while(1)
 	{
-		if((pthread_kill(tid_decode[0],0) != 0) || (stopAllTaskFlag == 1))	break;
 		sem_wait(&display_sem[0]);
+		if((pthread_kill(tid_decode[0],0) != 0) || (stopAllTaskFlag == 1))	break;
 		pthread_mutex_lock(&sdl2_mutex);
 		//sdl2_clear_frame(sdl2_dev);//要改，不然会闪烁
-		sdl2_dev->imageFrameBuffer[0] = sdl2_dev->pFrameRGB[0]->data[0];
+		sdl2_dev->imageFrameBuffer[0][0] = sdl2_dev->pFrameDecode[0]->data[0];
+		sdl2_dev->imageFrameBuffer[0][1] = sdl2_dev->pFrameDecode[0]->data[1];
+		sdl2_dev->imageFrameBuffer[0][2] = sdl2_dev->pFrameDecode[0]->data[2];
+		sdl2_dev->oneLineByteSize[0][0] = sdl2_dev->pFrameDecode[0]->linesize[0];
+		sdl2_dev->oneLineByteSize[0][1] = sdl2_dev->pFrameDecode[0]->linesize[1];
+		sdl2_dev->oneLineByteSize[0][2] = sdl2_dev->pFrameDecode[0]->linesize[2];
+		
 		sdl2_dev->layerInfo[0].crop.x = 0;
 		sdl2_dev->layerInfo[0].crop.y = 0;
 		sdl2_dev->layerInfo[0].crop.w = sdl2_dev->imageSize_width[0];
@@ -337,6 +361,7 @@ void* task_display_0(void* args)
 		
 		pthread_mutex_unlock(&sdl2_mutex);
 	}
+	printf("display 0 end\r\n");
 	return (void*)0;
 }
 
@@ -345,11 +370,17 @@ void* task_display_1(void* args)
 	sdl2_display_info* sdl2_dev = (sdl2_display_info*)args;
 	while(1)
 	{
-		if((pthread_kill(tid_decode[1],0) != 0) || (stopAllTaskFlag == 1))	break;
 		sem_wait(&display_sem[1]);
+		if((pthread_kill(tid_decode[1],0) != 0) || (stopAllTaskFlag == 1))	break;
 		pthread_mutex_lock(&sdl2_mutex);
 		//sdl2_clear_frame(sdl2_dev);
-		sdl2_dev->imageFrameBuffer[1] = sdl2_dev->pFrameRGB[1]->data[0];
+		sdl2_dev->imageFrameBuffer[1][0] = sdl2_dev->pFrameDecode[1]->data[0];
+		sdl2_dev->imageFrameBuffer[1][1] = sdl2_dev->pFrameDecode[1]->data[1];
+		sdl2_dev->imageFrameBuffer[1][2] = sdl2_dev->pFrameDecode[1]->data[2];
+		sdl2_dev->oneLineByteSize[1][0] = sdl2_dev->pFrameDecode[1]->linesize[0];
+		sdl2_dev->oneLineByteSize[1][1] = sdl2_dev->pFrameDecode[1]->linesize[1];
+		sdl2_dev->oneLineByteSize[1][2] = sdl2_dev->pFrameDecode[1]->linesize[2];
+		
 		sdl2_dev->layerInfo[1].crop.x = 0;
 		sdl2_dev->layerInfo[1].crop.y = 0;
 		sdl2_dev->layerInfo[1].crop.w = sdl2_dev->imageSize_width[1];
@@ -369,6 +400,7 @@ void* task_display_1(void* args)
 		
 		pthread_mutex_unlock(&sdl2_mutex);
 	}
+	printf("display 1 end\r\n");
 	return (void*)0;
 }
 
@@ -484,7 +516,7 @@ int main(int argc, char *argv[])
 
 	for(m=0;m<sdl2_dev->inputSourceNum;m++)
 	{
-		sdl2_dev->pixformat[m] = SDL_PIXELFORMAT_RGB24;
+		sdl2_dev->pixformat[m] = SDL_PIXELFORMAT_IYUV;
 		sdl2_dev->components[m] = 3;
 		sdl2_dev->v_stream_idx[m] = -1;
 		sdl2_dev->pFormatCtx[m] = avformat_alloc_context();
@@ -550,7 +582,7 @@ int main(int argc, char *argv[])
 
 		sdl2_dev->imageSize_width[m] = sdl2_dev->pCodecCtx[m]->width;
 		sdl2_dev->imageSize_height[m] = sdl2_dev->pCodecCtx[m]->height;
-		sdl2_dev->oneLineByteSize[m] = sdl2_dev->pCodecCtx[m]->width * sdl2_dev->components[m];
+		//sdl2_dev->oneLineByteSize[m] = sdl2_dev->pCodecCtx[m]->width * sdl2_dev->components[m];
 		
 		if((sdl2_dev->pFormatCtx[m]->streams[sdl2_dev->v_stream_idx[m]]->avg_frame_rate.num != 0) && (sdl2_dev->pFormatCtx[m]->streams[sdl2_dev->v_stream_idx[m]]->avg_frame_rate.den != 0))
 		{
@@ -575,19 +607,19 @@ int main(int argc, char *argv[])
 	    //内存分配
 	    sdl2_dev->pFrame[m] = av_frame_alloc();//用于存储一帧解码后，原始像素格式的数据
 	    //RGB888	
-	    sdl2_dev->pFrameRGB[m] = av_frame_alloc();//用于存储一帧解码后，由原始像素格式转换成rgb后的数据
+	    sdl2_dev->pFrameDecode[m] = av_frame_alloc();//用于存储一帧解码后，由原始像素格式转换成rgb后的数据
 
 
 		
 	    //只有指定了AVFrame的像素格式、画面大小才能真正分配内存
 	    //缓冲区分配内存
-	    sdl2_dev->out_buffer[m] = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, sdl2_dev->pCodecCtx[m]->width, sdl2_dev->pCodecCtx[m]->height,1));
+	    sdl2_dev->out_buffer[m] = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_YUV420P, sdl2_dev->pCodecCtx[m]->width, sdl2_dev->pCodecCtx[m]->height,1));
 	    //初始化缓冲区
-	    av_image_fill_arrays(sdl2_dev->pFrameRGB[m]->data,sdl2_dev->pFrameRGB[m]->linesize,sdl2_dev->out_buffer[m],AV_PIX_FMT_RGB24,sdl2_dev->pCodecCtx[m]->width, sdl2_dev->pCodecCtx[m]->height,1);
+	    av_image_fill_arrays(sdl2_dev->pFrameDecode[m]->data,sdl2_dev->pFrameDecode[m]->linesize,sdl2_dev->out_buffer[m],AV_PIX_FMT_YUV420P,sdl2_dev->pCodecCtx[m]->width, sdl2_dev->pCodecCtx[m]->height,1);
 	  
 	    //用于转码（缩放）的参数，转之前的宽高，转之后的宽高，格式等
 	    sdl2_dev->sws_ctx[m] = sws_getContext(sdl2_dev->pCodecCtx[m]->width,sdl2_dev->pCodecCtx[m]->height,sdl2_dev->pCodecCtx[m]->pix_fmt,
-                                sdl2_dev->pCodecCtx[m]->width, sdl2_dev->pCodecCtx[m]->height, AV_PIX_FMT_RGB24,
+                                sdl2_dev->pCodecCtx[m]->width, sdl2_dev->pCodecCtx[m]->height, AV_PIX_FMT_YUV420P,
                                 SWS_BICUBIC, NULL, NULL, NULL);
 	}
     int got_picture[sdl2_dev->inputSourceNum], ret[sdl2_dev->inputSourceNum];
@@ -641,7 +673,7 @@ FREE_MEM:
 	{
 		sws_freeContext(sdl2_dev->sws_ctx[m]);
 		av_free(sdl2_dev->out_buffer[m]);
-		av_frame_free(&sdl2_dev->pFrameRGB[m]);
+		av_frame_free(&sdl2_dev->pFrameDecode[m]);
 		av_frame_free(&sdl2_dev->pFrame[m]);
 		av_packet_free(&sdl2_dev->packet[m]);		//这才是释放
 		avcodec_close(sdl2_dev->pCodecCtx[m]);
