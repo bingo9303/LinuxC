@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/ioctl.h> 
 
+
 #include "sdl2_display_rk3399.h"
 
 
@@ -58,7 +59,7 @@ void sdl2_display_frame(sdl2_display_info* sdl2_dev,int layerCh)
 {
 	LayerSetting* layer = &sdl2_dev->layerInfo[layerCh];
 
-	if(sdl2_dev->components[layer->inputPort] == SDL_PIXELFORMAT_IYUV)
+	if(sdl2_dev->pixformat[layer->inputPort] == SDL_PIXELFORMAT_IYUV)
 	{
 		SDL_UpdateYUVTexture(sdl2_dev->sdlTexture[layerCh], NULL,
                              sdl2_dev->imageFrameBuffer[layer->inputPort][0], sdl2_dev->oneLineByteSize[layer->inputPort][0],

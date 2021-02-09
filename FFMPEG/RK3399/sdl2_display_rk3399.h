@@ -11,8 +11,23 @@
 #include <libavutil/frame.h>
 #include <SDL2/SDL.h>
 
+#include <rockchip/config.h>
+#include <rockchip/mpp_err.h>
+#include <rockchip/mpp_meta.h>
+#include <rockchip/mpp_task.h>
+#include <rockchip/rk_mpi.h>
+#include <rockchip/vpu_api.h>
+#include <rockchip/mpp_buffer.h>
+#include <rockchip/mpp_frame.h>
+#include <rockchip/mpp_packet.h>
+#include <rockchip/rk_mpi_cmd.h>
+#include <rockchip/rk_type.h>
+#include <rockchip/vpu.h>
+
+
 
 #define MAX_CH_NUM		5
+#define ENABLE_MMP_DECODE	0
 
 
 typedef struct
@@ -35,6 +50,27 @@ typedef struct
 } OutLayerSetting;
 
 
+typedef struct
+{
+    MppCtx          ctx;
+    MppApi          *mpi;
+    RK_U32          eos;
+    char            *buf;
+
+    MppBufferGroup  frm_grp;
+    MppBufferGroup  pkt_grp;
+    MppPacket       packet;
+    size_t          packet_size;
+    MppFrame        frame;
+
+    FILE            *fp_input;
+    FILE            *fp_output;
+    RK_S32          frame_count;
+    RK_S32          frame_num;
+    size_t          max_usage;
+} MpiDecLoopData;
+
+
 typedef struct _sdl2_display_info_multiple_input
 {
 /* 输出参数 */
@@ -44,6 +80,7 @@ typedef struct _sdl2_display_info_multiple_input
 	int windowsSize_height;
 
 /* 输入参数 */
+	char** inputFile[MAX_CH_NUM];
 	int inputSourceNum;	
 	int imageSize_width[MAX_CH_NUM];
 	int imageSize_height[MAX_CH_NUM];
@@ -74,6 +111,34 @@ typedef struct _sdl2_display_info_multiple_input
 	struct SwsContext *sws_ctx[MAX_CH_NUM];
 	int v_stream_idx[MAX_CH_NUM];
 
+#if ENABLE_MMP_DECODE
+    // base flow context
+    MppCtx mmp_ctx[MAX_CH_NUM];
+    MppApi *mmp_mpi[MAX_CH_NUM];
+
+    // input / output
+    MppPacket mmp_packet[MAX_CH_NUM];
+    MppFrame  mmp_frame[MAX_CH_NUM];
+
+    MpiCmd mmp_mpi_cmd[MAX_CH_NUM];
+    MppParam mmp_param[MAX_CH_NUM];
+    RK_U32 mmp_need_split[MAX_CH_NUM];
+//    MppPollType mmp_timeout = 5;
+
+    // paramter for resource malloc
+    RK_U32 mmp_width[MAX_CH_NUM];
+    RK_U32 mmp_height[MAX_CH_NUM];
+    MppCodingType mmp_type[MAX_CH_NUM];
+
+    // resources
+    char *mmp_buf[MAX_CH_NUM];
+    size_t mmp_packet_size[MAX_CH_NUM];
+    MppBuffer mmp_pkt_buf[MAX_CH_NUM];
+    MppBuffer mmp_frm_buf[MAX_CH_NUM];
+
+    MpiDecLoopData mmp_data[MAX_CH_NUM];
+
+#endif
 	
 }sdl2_display_info;
 
