@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/ioctl.h> 
+#include <sys/time.h>
 
 
 //#include <stdafx.h>
@@ -42,7 +43,6 @@ int main(int argc, char *argv[])
 	int fd_tty,inputcharNum=0;
 	char buf_tty[10];
     unsigned char* buffer = NULL;
-	char * jpegBufferFrame = NULL;
 	unsigned int lineIndex = 0;
 	unsigned int oneLineByteSize;
     /*
@@ -93,12 +93,20 @@ int main(int argc, char *argv[])
 
 
 	
+	
+	buffer = (unsigned char *) malloc(1920 * 1080 * 3);
 
     /*
     * init jpeg decompress object error handler
     */
+	static struct timeval decode_tv;
+	gettimeofday(&decode_tv,NULL);
+    printf("111...%ld\r\n",decode_tv.tv_usec);
+
+	
     cinfo.err = jpeg_std_error(&jerr);
 	cinfo.jpeg_color_space = JCS_RGB;//libjpeg解出来的像素格式为rgb
+	cinfo.dct_method = JDCT_FASTEST;
     jpeg_create_decompress(&cinfo);
 
     /*
@@ -106,6 +114,7 @@ int main(int argc, char *argv[])
     * bind jpeg decompress object to infile
 
     */
+    
     jpeg_stdio_src(&cinfo, infile);
 
     /*
@@ -127,21 +136,31 @@ int main(int argc, char *argv[])
 	printf("cinfo.output_height = %d,cinfo.output_width = %d,cinfo.output_components = %d\r\n",
 				cinfo.output_height,cinfo.output_width,cinfo.output_components);*/
 
+	
+	unsigned char*  bufferPtr;
 	oneLineByteSize = cinfo.output_width * cinfo.output_components;
-	buffer = (unsigned char *) malloc(cinfo.output_width * cinfo.output_components);
-	jpegBufferFrame = (unsigned char *) malloc(cinfo.output_height * oneLineByteSize);
-
+//	buffer = (unsigned char *) malloc(cinfo.output_width * cinfo.output_height * cinfo.output_components);
+	if(buffer == NULL)		printf("malloc mem faild\r\n");
 
 	
-	if((buffer == NULL) || (jpegBufferFrame == NULL))		printf("malloc mem faild\r\n");
 
 	while (cinfo.output_scanline < cinfo.output_height) 
-	{
-		jpeg_read_scanlines(&cinfo, &buffer, 1);
-		memcpy(&jpegBufferFrame[lineIndex * oneLineByteSize], buffer, oneLineByteSize);
+	{	
+		bufferPtr = &buffer[lineIndex * oneLineByteSize];
+		jpeg_read_scanlines(&cinfo, &bufferPtr, 1);
 		lineIndex++;
 	}
 
+	 /*
+    * finish decompress, destroy decompress object
+    */
+
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    
+
+	gettimeofday(&decode_tv,NULL);
+	printf("222...%ld\r\n",decode_tv.tv_usec);
 
 	SDL_Window *screen;
     //SDL 2.0 Support for multiple windows
@@ -168,7 +187,7 @@ int main(int argc, char *argv[])
 		
 	while(1)
     {
-        SDL_UpdateTexture(sdlTexture, NULL, jpegBufferFrame, oneLineByteSize);	//这个相当于crop，填入的jpegBufferFrame单位的一帧画面
+        SDL_UpdateTexture(sdlTexture, NULL, buffer, oneLineByteSize);	//这个相当于crop，填入的jpegBufferFrame单位的一帧画面
         																		//最后一个参数是，显示一行需要多少字节
 		
 		crop_Rect.x = 0;
@@ -204,20 +223,13 @@ int main(int argc, char *argv[])
 
 	
 
-    /*
-    * finish decompress, destroy decompress object
-    */
-
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-    /*
-
+   
+	/*
     * release memory buffer
 
     */
 
     free(buffer);
-	free(jpegBufferFrame);
     /*
     * close jpeg inputing file
     */
