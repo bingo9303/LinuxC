@@ -213,7 +213,7 @@ void* task_display_0(void* args)
 		int res;
 		cpu_set_t cpuset;
 		CPU_ZERO(&cpuset);
-	    for (cpuIndex = 0; cpuIndex < 4; cpuIndex++)
+	    for (cpuIndex = 4; cpuIndex < 6; cpuIndex++)
 	        CPU_SET(cpuIndex, &cpuset);
 		
 		res = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
@@ -277,7 +277,7 @@ void* task_display_1(void* args)
 		int res;
 		cpu_set_t cpuset;
 		CPU_ZERO(&cpuset);
-	    for (cpuIndex = 0; cpuIndex < 4; cpuIndex++)
+	    for (cpuIndex = 4; cpuIndex < 6; cpuIndex++)
 	        CPU_SET(cpuIndex, &cpuset);
 		
 		res = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);

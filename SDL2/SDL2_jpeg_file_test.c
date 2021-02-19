@@ -28,6 +28,11 @@
 
 void            usage(char *msg);
 /************ function implementation ********************/
+void Stop(int signo) 
+{
+    printf("stop!!!\n");
+    _exit(0);
+}
 
 int main(int argc, char *argv[])
 {
@@ -48,8 +53,8 @@ int main(int argc, char *argv[])
     /*
     * declaration for framebuffer device
     */
-    unsigned int    screensize_x = 960;
-    unsigned int    screensize_y = 540;
+    unsigned int    screensize_x = 1920;
+    unsigned int    screensize_y = 1080;
 
     /*
     * check auguments
@@ -59,6 +64,7 @@ int main(int argc, char *argv[])
         usage("insuffient auguments");
         exit(-1);
     }
+	signal(SIGINT, Stop); 
 
 	fd_tty=open("/dev/tty",O_RDONLY|O_NONBLOCK);//用只读和非阻塞的方式打开文件dev/tty
     if(fd_tty<0)
@@ -183,7 +189,8 @@ int main(int argc, char *argv[])
 	
 	SDL_Rect scale_Rect;
 	SDL_Rect crop_Rect;
-	
+	gettimeofday(&decode_tv,NULL);
+	printf("333...%ld\r\n",decode_tv.tv_usec);
 		
 	while(1)
     {
@@ -204,6 +211,8 @@ int main(int argc, char *argv[])
         SDL_RenderClear(sdlRenderer);
         SDL_RenderCopy(sdlRenderer, sdlTexture, &crop_Rect, &scale_Rect);	//crop_Rect如果为NULL，则默认整个画面的crop
         SDL_RenderPresent(sdlRenderer);
+		gettimeofday(&decode_tv,NULL);
+		printf("444...%ld\r\n",decode_tv.tv_usec);
         //Delay 40ms
      //   SDL_Delay(40);
      
@@ -220,8 +229,6 @@ int main(int argc, char *argv[])
 
     }
     SDL_Quit();
-
-	
 
    
 	/*

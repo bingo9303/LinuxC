@@ -1,0 +1,3 @@
+/home/pi/bingo/OpenCV/rk3399-opencv-uvccamera-cpp-demo/build/CMakeFiles/rebuild_cache.dir
+/home/pi/bingo/OpenCV/rk3399-opencv-uvccamera-cpp-demo/build/CMakeFiles/opencamera.dir
+/home/pi/bingo/OpenCV/rk3399-opencv-uvccamera-cpp-demo/build/CMakeFiles/edit_cache.dir
