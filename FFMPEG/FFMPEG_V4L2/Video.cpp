@@ -92,7 +92,7 @@ int  decode(void *arg)
 	
 	res = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
 		
-
+	
 	while (true)
 	{
 		video->videoq->deQueue(&packet, true);
@@ -105,11 +105,22 @@ int  decode(void *arg)
 		if (ret < 0 && ret != AVERROR_EOF)
 			continue;
 		
-		printf("nb_frames=%d\r\n",video->frameq.nb_frames);
+		
+		bingo_log(("222...%ld,,nb_frames = %d\r\n",getDebugTime(),video->frameq.nb_frames));
 
-				
-
+	/*	#if (BINGO_DEBUG==4)
+			SDL_Delay(40);	
+		#else if(BINGO_DEBUG==2)
+			SDL_Delay(30);
+		#endif*/
+		
+		av_packet_unref(&packet);
 		video->frameq.enQueue(frame);
+		
+		while(video->frameq.queue.size() >= BUFFER_NUM)	
+		{
+			SDL_Delay(2);
+		}
 
 		av_frame_unref(frame);
 		//usleep(10000);

@@ -115,7 +115,6 @@ int decode_thread(void *data)
 	
 	res = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
 	
-
 	while (true)
 	{
 		int ret = av_read_frame(media->pFormatCtx, packet);
@@ -134,8 +133,8 @@ int decode_thread(void *data)
 	
 		if (packet->stream_index == media->video->stream_index) // video stream
 		{
+			bingo_log(("111...%ld,,nb_packets = %d\r\n",getDebugTime(),media->video->videoq->nb_packets));
 			media->video->videoq->enQueue(packet);
-			printf("nb_packets = %d\r\n",media->video->videoq->nb_packets);
 			av_packet_unref(packet);
 		}		
 		else

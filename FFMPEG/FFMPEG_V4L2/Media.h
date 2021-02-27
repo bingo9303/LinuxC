@@ -21,8 +21,10 @@ struct MediaState
 	~MediaState();
 
 	bool openInput();
+	
 };
 
 int decode_thread(void *data);
 pid_t gettid();
+unsigned int getDebugTime(void);
 #endif

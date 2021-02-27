@@ -7,7 +7,19 @@ pid_t gettid() {
  return syscall(SYS_gettid);
 }
 
+unsigned int getDebugTime(void)
+{
+	static struct timeval decode_tv;
+	gettimeofday(&decode_tv,NULL);
+	return decode_tv.tv_usec;
+}
 
+
+void Stop(int signo) 
+{
+    printf("stop!!!\n");
+    _exit(0);
+}
 int main(int argv, char* argc[])
 {
 	char cpuIndex;
@@ -23,11 +35,12 @@ int main(int argv, char* argc[])
 	
 	res = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
 	
+	signal(SIGINT, Stop);
 
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 
 	char* filename = "/dev/video10";
-	//char* filename = "F:\\test.rmvb";
+//	char* filename = "test.mp4";
 	MediaState media(filename);
 	if (media.openInput())
 		SDL_CreateThread(decode_thread, "", &media); // 创建解码线程，读取packet到队列中缓存
@@ -35,9 +48,6 @@ int main(int argv, char* argc[])
 
 	AVStream *video_stream = media.pFormatCtx->streams[media.video->stream_index];
 
-	double video_duration = video_stream->duration * av_q2d(video_stream->time_base);
-
-	cout << "video时长：" << video_duration << endl;
 
 	SDL_Event event;
 	while (true) // SDL event loop

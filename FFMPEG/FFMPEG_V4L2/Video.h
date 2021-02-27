@@ -30,6 +30,7 @@ struct VideoState
 	SDL_Rect rect_scale;
 	SDL_Rect rect_crop;
 
+
 	void video_play(MediaState *media);
 	
 	VideoState();

@@ -16,29 +16,19 @@ extern "C"{
 }
 
 
-struct _frameBuffer
-{
-	AVFrame* frame;
-	char useFlag;
-};
 
 struct FrameQueue
 {
-	std::queue<struct _frameBuffer*> queue;
+	std::queue<AVFrame*> queue;
 
 	uint32_t nb_frames;
 
 	SDL_mutex* mutex;
 	SDL_cond * cond;
 
-	struct _frameBuffer frameBuffer[BUFFER_NUM];
-
 	FrameQueue();
-	~FrameQueue();
 	bool enQueue(const AVFrame* frame);
 	bool deQueue(AVFrame **frame);
-
-	struct _frameBuffer* getEmptyFrame(void);
 };
 
 

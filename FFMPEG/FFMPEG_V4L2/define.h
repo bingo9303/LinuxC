@@ -26,7 +26,15 @@ extern "C"{
 
 }
 
-#define BUFFER_NUM		4
+#define BUFFER_NUM		2
+
+#define BINGO_DEBUG		0
+
+#if BINGO_DEBUG
+#define bingo_log(x)		printf x		
+#else
+#define bingo_log(x)
+#endif
 
 
 

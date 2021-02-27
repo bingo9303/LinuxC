@@ -572,22 +572,6 @@ void* task_decode_0(void* args)
 	                continue;
 	            }
 
-				err = av_buffersrc_add_frame(src, dev->pFrame[0]);
-		        if (err < 0) {
-		            av_frame_unref(dev->pFrame[0]);
-		            fprintf(stderr, "Error submitting the frame to the filtergraph:");
-		            exit(1);
-		        }
-				//while (err >= 0) 
-				{		
-		            err = av_buffersink_get_frame(sink, dev->pFrame[0]);
-		            if (err < 0) 
-					{
-		                printf("222222222\r\n");
-		               usleep(1000);
-					}
-	            }
-
 	            //为0说明解码完成，非0正在解码
 	            if (got_picture == 0)
 	            {	
