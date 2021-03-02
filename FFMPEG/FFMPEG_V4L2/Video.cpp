@@ -33,8 +33,8 @@ void VideoState::video_play(MediaState *media)
 	int height = video_ctx->height;
 	// ´´½¨sdl´°¿Ú
 	window = SDL_CreateWindow("FFmpeg Decode", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		width, height, SDL_WINDOW_OPENGL);
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+		width, height, /*SDL_WINDOW_OPENGL*/SDL_WINDOW_FULLSCREEN_DESKTOP);
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE/*SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC*/);
 	bmp = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR888/*SDL_PIXELFORMAT_BGR888*/, SDL_TEXTUREACCESS_STREAMING,
 		width, height);
 
@@ -116,11 +116,11 @@ int  decode(void *arg)
 		
 		av_packet_unref(&packet);
 		video->frameq.enQueue(frame);
-		
+		/*
 		while(video->frameq.queue.size() >= BUFFER_NUM)	
 		{
 			SDL_Delay(2);
-		}
+		}*/
 
 		av_frame_unref(frame);
 		//usleep(10000);

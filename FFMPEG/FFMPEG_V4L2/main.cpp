@@ -13,6 +13,32 @@ unsigned int getDebugTime(void)
 	gettimeofday(&decode_tv,NULL);
 	return decode_tv.tv_usec;
 }
+extern unsigned char frameRata;
+void framebuffer_info(int signo)
+{
+    printf("frameRata : %d\n",frameRata);
+	frameRata = 0;
+}
+
+
+void init_sigaction(void)
+{
+    struct sigaction act;
+    act.sa_handler = framebuffer_info;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask); 
+    sigaction(SIGPROF,&act,NULL); //设置信号 SIGPROF 的处理函数为 print_info
+}
+
+void init_time(void) 
+{ 
+    struct itimerval value; 
+    value.it_value.tv_sec=1; //定时器启动后，每隔1秒将执行相应的函数
+    value.it_value.tv_usec=0; 
+    value.it_interval=value.it_value; 
+    setitimer(ITIMER_PROF,&value,NULL); //初始化 timer，到期发送 SIGPROF 信号
+} 
+
 
 
 void Stop(int signo) 
@@ -48,7 +74,11 @@ int main(int argv, char* argc[])
 
 	AVStream *video_stream = media.pFormatCtx->streams[media.video->stream_index];
 
+	init_sigaction();
+	init_time();
 
+
+	
 	SDL_Event event;
 	while (true) // SDL event loop
 	{

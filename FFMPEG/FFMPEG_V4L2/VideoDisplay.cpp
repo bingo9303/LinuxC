@@ -16,7 +16,7 @@ uint32_t sdl_refresh_timer_cb(uint32_t interval, void *opaque)
 	return 0; /* 0 means stop timer */
 }
 
-
+unsigned char frameRata = 0;
 
 void video_refresh_timer(void *userdata)
 {
@@ -57,13 +57,14 @@ void video_refresh_timer(void *userdata)
 			}
 			
 						
-			SDL_RenderClear(video->renderer);
+			//SDL_RenderClear(video->renderer);
 			SDL_RenderCopy(video->renderer, video->bmp, &video->rect_crop, &video->rect_scale);	 
 			 
 			bingo_log(("666...%ld\r\n",getDebugTime()));
 			SDL_RenderPresent(video->renderer);
 			bingo_log(("777...%ld\r\n",getDebugTime()));
 			av_frame_unref(video->frame);
+			frameRata++;
 
 		}
 	}

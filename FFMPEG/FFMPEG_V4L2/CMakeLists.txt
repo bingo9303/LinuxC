@@ -18,7 +18,7 @@ include_directories("/usr/local/include")
 link_directories("/usr/local/lib")
 
 # Declare the executable target built from your sources 
-add_executable(camera_sdl FrameQueue.cpp  PacketQueue.cpp main.cpp Media.cpp Video.cpp VideoDisplay.cpp) 
+add_executable(camera_sdl FrameQueue.cpp PacketQueue.cpp main.cpp Media.cpp Video.cpp VideoDisplay.cpp) 
 
 # Link your application with OpenCV libraries 
 #target_link_libraries(camera_sdl ${OpenCV_LIBS})

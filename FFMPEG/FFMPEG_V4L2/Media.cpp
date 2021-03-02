@@ -124,7 +124,7 @@ int decode_thread(void *data)
 				break;
 			if (media->pFormatCtx->pb->error == 0) // No error,wait for user input
 			{
-				SDL_Delay(100);
+			//	SDL_Delay(100);
 				continue;
 			}
 			else
